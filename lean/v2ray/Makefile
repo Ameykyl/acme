@@ -7,7 +7,7 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=v2ray
-PKG_VERSION:=4.19.1
+PKG_VERSION:=4.21.3
 PKG_BUILD_DIR:=$(BUILD_DIR)/$(PKG_NAME)-$(PKG_VERSION)
 
 include $(INCLUDE_DIR)/package.mk
@@ -84,6 +84,10 @@ ifeq ($(ARCH),arm)
 	endif
 endif
 
+ifeq ($(BOARD),kirkwood)
+	V2RAY_BIN:=v2ray
+endif
+
 ifdef CONFIG_PACKAGE_V2RAY_SOFTFLOAT
 	V2RAY_BIN:=v2ray_softfloat
 	V2CTL_BIN:=v2ctl_softfloat
@@ -99,9 +103,9 @@ define Build/Configure
 endef
 
 define Build/Compile
-		chmod +755 $(PKG_BUILD_DIR)/$(V2RAY_BIN) && upx --lzma $(PKG_BUILD_DIR)/$(V2RAY_BIN)
-		chmod +755 $(PKG_BUILD_DIR)/$(V2CTL_BIN) && upx --lzma $(PKG_BUILD_DIR)/$(V2CTL_BIN)
-		echo "$(PKG_VERSION)" > $(PKG_BUILD_DIR)/v2ray_version
+	#chmod +x $(PKG_BUILD_DIR)/$(V2RAY_BIN) && upx -k --lzma --ultra-brute $(PKG_BUILD_DIR)/$(V2RAY_BIN)
+	#chmod +x $(PKG_BUILD_DIR)/$(V2CTL_BIN) && upx -k --lzma --ultra-brute $(PKG_BUILD_DIR)/$(V2CTL_BIN)
+	echo "$(PKG_VERSION)" > $(PKG_BUILD_DIR)/v2ray_version
 endef
 
 define Package/$(PKG_NAME)/install
