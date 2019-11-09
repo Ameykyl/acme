@@ -30,20 +30,51 @@ hw:depends("flow_offloading", 1)
 bbr = s:option(ListValue, "bbr", translate("TCP Congestion Control Algorithm"))
 bbr:value("default", translate("default"))
 bbr:value("bbr", translate("BBR"))
+if nixio.fs.access("/lib/modules/" .. version .. "/tcp_bbr_mod.ko") then
 bbr:value("tcp_bbr_mod", translate("BBR_mod"))
---bbr:value("tcp_bbr_bbrplus", translate("bbr_bbrplus"))
---bbr:value("tcp_bbr_tsunami", translate("bbr_tsunami"))
+end
+if nixio.fs.access("/lib/modules/" .. version .. "/tcp_bbr_bbrplus.ko") then
+bbr:value("tcp_bbr_bbrplus", translate("bbr_bbrplus"))
+end
+if nixio.fs.access("/lib/modules/" .. version .. "/tcp_bbr_tsunami.ko") then
+bbr:value("tcp_bbr_tsunami", translate("bbr_tsunami"))
+end
+if nixio.fs.access("/lib/modules/" .. version .. "/tcp_bbr_nanqinlang.ko") then
 bbr:value("nanqinlang", translate("bbr_nanqinlang"))
+end
+if nixio.fs.access("/lib/modules/" .. version .. "/tcp_bic.ko") then
 bbr:value("bic", translate("bic"))
+end
+if nixio.fs.access("/lib/modules/" .. version .. "/tcp_highspeed.ko") then
 bbr:value("highspeed", translate("hstcp"))
+end
+if nixio.fs.access("/lib/modules/" .. version .. "/tcp_htcp.ko") then
 bbr:value("htcp", translate("htcp"))
+end
+if nixio.fs.access("/lib/modules/" .. version .. "/tcp_hybla.ko") then
 bbr:value("hybla", translate("hybla"))
+end
+if nixio.fs.access("/lib/modules/" .. version .. "/tcp_illinois.ko") then
 bbr:value("illinois", translate("illinois"))
+end
+if nixio.fs.access("/lib/modules/" .. version .. "/tcp_lp.ko") then
 bbr:value("lp", translate("lp"))
+end
+if nixio.fs.access("/lib/modules/" .. version .. "/tcp_scalable.ko") then
 bbr:value("scalable", translate("scalable"))
+end
+if nixio.fs.access("/lib/modules/" .. version .. "/tcp_veno.ko") then
+bbr:value("vegas", translate("veno"))
+end
+if nixio.fs.access("/lib/modules/" .. version .. "/tcp_vegas.ko") then
 bbr:value("vegas", translate("vegas"))
+end
+if nixio.fs.access("/lib/modules/" .. version .. "/tcp_westwood.ko") then
 bbr:value("westwood", translate("westwood"))
+end
+if nixio.fs.access("/lib/modules/" .. version .. "/tcp_yeah.ko") then
 bbr:value("yeah", translate("yeah"))
+end
 bbr.default = "cubic"
 bbr.rmempty = false
 bbr.description = translate("Bottleneck Bandwidth and Round-trip propagation time (BBR)")
