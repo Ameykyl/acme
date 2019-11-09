@@ -688,12 +688,16 @@ start_redir() {
 	local dnsstr="$(uci_get_by_type global tunnel_forward 8.8.4.4:53)"
     local dnsserver=`echo "$dnsstr"|awk -F ':'  '{print $1}'`
     local dnsport=`echo "$dnsstr"|awk -F ':'  '{print $2}'`
-		if [ "$run_mode" = "gfw" ]; then
-			ipset add gfwlist $dnsserver 2>/dev/null
-		elif [ "$run_mode" = "oversea" ]; then
-			ipset add oversea $dnsserver 2>/dev/null
+		if [ "$dnsserver" = "0.0.0.0" ]; then
+			echo "$(date "+%Y-%m-%d %H:%M:%S") dns="$dnsserver"" >> /tmp/ssrplus.log
 		else
-			ipset add ss_spec_wan_ac $dnsserver nomatch 2>/dev/null  
+			if [ "$run_mode" = "gfw" ]; then
+				ipset add gfwlist $dnsserver 2>/dev/null
+			elif [ "$run_mode" = "oversea" ]; then
+				ipset add oversea $dnsserver 2>/dev/null
+			else
+				ipset add ss_spec_wan_ac $dnsserver nomatch 2>/dev/null  
+			fi
 		fi
 
 		if [ "$(uci_get_by_type global pdnsd_enable)" = "1" ] || [ "$(uci_get_by_type global pdnsd_enable)" = "2" ] ;then
@@ -740,6 +744,33 @@ start_redir() {
 	add_cron
 
 	return $?
+}
+start_udp2raw() {
+	cat > /var/etc/udp2raw.conf <<EOF
+# udp2raw config file
+-c
+-l0.0.0.0:$(uci_get_by_type udp2raw local_port)
+-r$(uci_get_by_type udp2raw server):$(uci_get_by_type udp2raw server_port)
+-a
+-k $(uci_get_by_type udp2raw key)
+--raw-mode $(uci_get_by_type udp2raw raw_mode)
+--seq-mode $(uci_get_by_type udp2raw seq_mode)
+--cipher-mode $(uci_get_by_type udp2raw cipher_mode)
+--auth-mode $(uci_get_by_type udp2raw auth_mode)
+EOF
+	/usr/bin/udp2raw --conf-file /var/etc/udp2raw.conf >/dev/null 2>&1 &
+}
+
+start_udpspeeeder() {
+	/usr/bin/udpspeeder -c -l0.0.0.0:$(uci_get_by_type udpspeeder local_port) \
+		-r$(uci_get_by_type udpspeeder server):$(uci_get_by_type udpspeeder server_port) \
+		-k $(uci_get_by_type udpspeeder key) \
+		--mode $(uci_get_by_type udpspeeder speeder_mode) \
+		--mtu $(uci_get_by_type udpspeeder mtu) \
+		-f$(uci_get_by_type udpspeeder fec) \
+		-q$(uci_get_by_type udpspeeder queue_len) \
+		--timeout $(uci_get_by_type udpspeeder timeout) \
+		>/dev/null 2>&1 &
 }
 
 gen_service_file() {
@@ -920,13 +951,26 @@ rules() {
 	fi
 }
 
-start() { 
+start() {
+        case "$(uci_get_by_type udp2raw udp2raw_enable)" in
+		1|on|true|yes|enabled)
+			start_udp2raw
+			;;
+	esac
+	case "$(uci_get_by_type udpspeeder udpspeeder_enable)" in
+		1|on|true|yes|enabled)
+			start_udpspeeeder
+			;;
+	esac
+
 	if [ -z "$switch_server" ] ;then
 		GLOBAL_SERVER=$(uci_get_by_type global global_server)
 	else
 		GLOBAL_SERVER=$switch_server
 		switch_enable=1
+           
 	fi
+
 
 	HAPROXY_MODE="0"
 	if [ "$GLOBAL_SERVER" = "__haproxy__" ]; then
@@ -953,17 +997,19 @@ start() {
 	sleep 2
 
 		cat > /tmp/dnsmasq.d/dnsmasq-ssr.conf <<EOF
-conf-dir=/var/dnsmasq.ssr
+conf-dir=/var/etc/dnsmasq.ssr
 EOF
-
-			cp -a /etc/dnsmasq.ssr /var
+			mkdir -p /var/etc/dnsmasq.ssr
+			ln -s /etc/dnsmasq.ssr/* /var/etc/dnsmasq.ssr/
 
 		else
 		cat > /tmp/dnsmasq.d/dnsmasq-ssr.conf <<EOF
-conf-dir=/var/dnsmasq.oversea
+conf-dir=/var/etc/dnsmasq.oversea
 EOF
 
-			cp -a /etc/dnsmasq.oversea /var
+			mkdir -p /var/etc/dnsmasq.oversea
+			ln -s /etc/dnsmasq.oversea/* /var/etc/dnsmasq.oversea/
+			ln -s /etc/dnsmasq.ssr/appoint_list.conf /var/etc/dnsmasq.oversea/appoint_list.conf
 
 		fi
 
@@ -1028,7 +1074,9 @@ stop() {
 	killall -q -9 obfs-local
 	killall -q -9 obfs-server
 	killall -q -9 chinadns
-
+        killall -q -9 udp2raw
+	killall -q -9 udpspeeder
+	/usr/bin/udp2raw --clear >/dev/null
 	if [ -f /var/run/pdnsd.pid ] ;then
 		kill $(cat /var/run/pdnsd.pid) >/dev/null 2>&1
 	else
@@ -1043,11 +1091,11 @@ stop() {
 		rm -f /tmp/dnsmasq.d/dnsmasq-ssr.conf
 
 		if [ -d  "/var/dnsmasq.ssr" ]; then
-			rm -rf /var/dnsmasq.ssr
+			rm -rf /var/etc/dnsmasq.ssr
 		fi
 
 		if [ -d  "/var/dnsmasq.oversea" ]; then
-			rm -rf /var/dnsmasq.oversea
+			rm -rf /var/etc/dnsmasq.oversea
 		fi
 		/etc/init.d/dnsmasq restart >/dev/null 2>&1
 	fi
